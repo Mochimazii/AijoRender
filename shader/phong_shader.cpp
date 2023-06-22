@@ -3,45 +3,32 @@
 //
 #include "./shader.h"
 
-void PhongShader::vertex_shader(int nfaces, int nvertex) {
-    vec4 temp_vert = to_vec4(payload.model.vert(nfaces, nvertex), 1.0f);
-    vec4 temp_normal = to_vec4(payload.model.normal(nfaces, nvertex), 1.0f);
-    // TODO:片段着色器里的计算都是在世界空间坐标中进行,法向量没有变换？？？
-    payload.uv_attri[nvertex] = payload.model.uv(nfaces, nvertex);
-    payload.clipcoord_attri[nvertex] = payload.mvp_matrix * temp_vert;
 
-    for (int i = 0; i < 3; ++i) {
-        payload.worldcoord_attri[nvertex][i] = temp_vert[i];
-        payload.normal_attri[nvertex][i] = temp_normal[i];
-    }
+shader_struct_v2f PhongShader::vertex_shader(shader_struct_a2v *a2v) {
+    shader_struct_v2f v2f;
+    v2f.clip_pos = ObjectToClipPos(a2v->obj_pos);
+    v2f.world_pos = ObjectToWorldPos(a2v->obj_pos);
+    v2f.world_normal = ObjectToWorldNormal(a2v->obj_normal);
+    v2f.uv = a2v->uv;
+    return v2f;
 }
 
-vec3 PhongShader::fragment_shader(float alpha, float beta, float gamma) {
-    auto clip_coords = payload.clipcoord_attri;
-    auto world_coords = payload.worldcoord_attri;
-    auto normals = payload.normal_attri;
-    auto uvs = payload.uv_attri;
-
-    // interpolate attribute
-    float Z = 1.0 / (alpha / clip_coords[0].w() + beta / clip_coords[1].w() + gamma / clip_coords[2].w());
-    vec3 normal = (alpha*normals[0] / clip_coords[0].w() + beta * normals[1] / clip_coords[1].w() +
-                   gamma * normals[2] / clip_coords[2].w()) * Z;
-    vec2 uv = (alpha*uvs[0] / clip_coords[0].w() + beta * uvs[1] / clip_coords[1].w() +
-               gamma * uvs[2] / clip_coords[2].w()) * Z;
-    vec3 worldpos = (alpha*world_coords[0] / clip_coords[0].w() + beta * world_coords[1] / clip_coords[1].w() +
-                     gamma * world_coords[2] / clip_coords[2].w()) * Z;
-
-//    if (payload.model->normalmap)
-//        normal = cal_normal(normal, world_coords, uvs, uv, payload.model->normalmap);
+vec3 PhongShader::fragment_shader(shader_struct_v2f *v2f) {
+    auto clip_coords = v2f->clip_pos;
+    auto world_pos = v2f->world_pos;
+    auto normal = v2f->world_normal;
+    auto uv = v2f->uv;
 
     // get ka,ks,kd
     vec3 ka(0.35, 0.35, 0.35);
-    vec3 kd = payload.model.diffuse(uv);
+    vec3 kd = tex_diffuse(uv);
     vec3 ks(0.8, 0.8, 0.8);
 
     // set light information
     float p = 150.0;
-    vec3 l = normlize(vec3(1, 1, 1));
+    // 光线方向
+    vec3 l = normlize(shader_payload.light_Pos);
+    // 光源信息
     vec3 light_ambient_intensity = kd;
     vec3 light_diffuse_intensity = vec3(0.9, 0.9, 0.9);
     vec3 light_specular_intensity = vec3(0.15, 0.15, 0.15);
@@ -52,7 +39,7 @@ vec3 PhongShader::fragment_shader(float alpha, float beta, float gamma) {
     vec3 result_color(0, 0, 0);
     vec3 ambient, diffuse, specular;
     normal = normlize(normal);
-    vec3 v = normlize(payload.camera.eye - worldpos);
+    vec3 v = normlize(shader_payload.view_Pos - world_pos);
     vec3 h = normlize(l + v);
 
     ambient = cwise_product(ka, light_ambient_intensity) ;

@@ -30,48 +30,54 @@ static float interpolate_depth(float A_depth, float B_depth, float C_depth, vec3
     return A_depth * weights[0] + B_depth * weights[1] + C_depth * weights[2];
 }
 
-static void interpolate_varyings(payload_t &v2f, vec3 barycentric) {
-    vec4 *clip_coords = v2f.clipcoord_attri;
-    vec3 *world_coords = v2f.worldcoord_attri;
-    vec3 *normals = v2f.normal_attri;
-    vec2 *uvs = v2f.uv_attri;
-
-    float Z = 1.0 / (barycentric.x() / clip_coords[0].w() + barycentric.y() / clip_coords[1].w() + barycentric.z() / clip_coords[2].w());
-    vec3 normal = (barycentric.x()*normals[0] / clip_coords[0].w() + barycentric.y() * normals[1] / clip_coords[1].w() +
-                   barycentric.z() * normals[2] / clip_coords[2].w()) * Z;
-    vec2 uv = (barycentric.x()*uvs[0] / clip_coords[0].w() + barycentric.y() * uvs[1] / clip_coords[1].w() +
-               barycentric.z() * uvs[2] / clip_coords[2].w()) * Z;
-    vec3 worldpos = (barycentric.x()*world_coords[0] / clip_coords[0].w() + barycentric.y() * world_coords[1] / clip_coords[1].w() +
-                     barycentric.z() * world_coords[2] / clip_coords[2].w()) * Z;
-    return;
+static shader_struct_v2f interpolate_varyings(shader_struct_v2f* v2f, vec3 barycentric) {
+    // todo:透视矫正插值
+    shader_struct_v2f ret;
+    ret.world_pos = v2f[0].world_pos * barycentric.x() + v2f[1].world_pos * barycentric.y() +v2f[2].world_pos * barycentric.z();
+    ret.world_normal = v2f[0].world_normal * barycentric.x() + v2f[1].world_normal * barycentric.y() +v2f[2].world_normal * barycentric.z();
+    ret.uv = v2f[0].uv * barycentric.x() + v2f[1].uv * barycentric.y() + v2f[2].uv * barycentric.z();
+    return ret;
 }
 
-void draw_triangles(DrawData &drawData) {
-    for (int i = 0; i < drawData.model.faceSize(); ++i) {
-        for (int j = 0; j < 3; ++j) {
-            drawData.shader->vertex_shader(i, j);
+void draw_triangles(Scene& scene) {
+    for (int x = 0; x < scene.modelSize(); ++x) {
+        scene.set_model_sample2D(x);
+        Model& currentModel = scene.model(x);
+        // 三角形各个点的 v2f
+        shader_struct_v2f v2fs[3];
+        for (int i = 0; i < currentModel.faceSize(); ++i) {
+            for (int j = 0; j < 3; ++j) {
+                shader_struct_a2v a2v;
+                a2v.obj_pos = currentModel.vert(i,j);
+                a2v.obj_normal = currentModel.normal(i,j);
+                a2v.uv = currentModel.uv(i,j);
+                v2fs[j] = scene.get_shader()->vertex_shader(&a2v);
+            }
+
+            rasterize(scene, v2fs);
         }
-        rasterize(drawData.shader->payload.clipcoord_attri, drawData);
     }
 }
 
-void rasterize(vec4 *clipcoord_attri, DrawData &drawData) {
+void rasterize(Scene &scene, shader_struct_v2f *v2fs) {
+
+    auto &render_buffer = scene.get_render_buffer();
+    // 齐次除法 x,y,z 坐标转换至 -1 -> 1
     vec3 ndc_coords[3];
-    vec3 screen_coords[3];
-    auto &render_buffer = drawData.render_buffer;
-    // 齐次除法
     for (int i = 0; i < 3; ++i) {
-        ndc_coords[i][0] = clipcoord_attri[i][0] / clipcoord_attri[i].w();
-        ndc_coords[i][1] = clipcoord_attri[i][1] / clipcoord_attri[i].w();
-        ndc_coords[i][2] = clipcoord_attri[i][2] / clipcoord_attri[i].w();
+        ndc_coords[i][0] = v2fs[i].clip_pos.x() / v2fs[i].clip_pos.w();
+        ndc_coords[i][1] = v2fs[i].clip_pos.y() / v2fs[i].clip_pos.w();;
+        ndc_coords[i][2] = v2fs[i].clip_pos.z() / v2fs[i].clip_pos.w();;
     }
 
     // 视口变换
+    vec3 screen_coords[3];
     for (int i = 0; i < 3; ++i) {
-        screen_coords[i][0] = 0.5*(render_buffer.width-1)*(ndc_coords[i][0] + 1.0);
-        screen_coords[i][1] = 0.5*(render_buffer.height-1)*(ndc_coords[i][1] + 1.0);
-        screen_coords[i][2] = clipcoord_attri[i].w();	//view space z-value
+        screen_coords[i] = viewport_transform(render_buffer.width, render_buffer.height, ndc_coords[i]);
     }
+//    for (int i = 0; i < 3; ++i) {
+//        screen_coords[i][2] = v2fs[i].clip_pos.w();
+//    }
 
     // set bounding box
     vec2 bboxmin(std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
@@ -99,9 +105,11 @@ void rasterize(vec4 *clipcoord_attri, DrawData &drawData) {
             // 深度测试
             if (frag_depth > render_buffer.get_depth(Pixel.x(), Pixel.y())) {
                 // 变量插值
-                interpolate_varyings(drawData.shader->payload, barycentric);
+                //interpolate_varyings(drawData.shader->payload, barycentric);
+                shader_struct_v2f interpolate_v2f = interpolate_varyings(v2fs, barycentric);
                 // fragment shader
-                vec3 color = drawData.shader->fragment_shader(barycentric.x(), barycentric.y(), barycentric.z());
+                //vec3 color = drawData.shader->fragment_shader(barycentric.x(), barycentric.y(), barycentric.z());
+                vec3 color = scene.get_shader()->fragment_shader(&interpolate_v2f);
                 // 绘制像素
                 render_buffer.set_depth(Pixel.x(), Pixel.y(), frag_depth);
                 render_buffer.set_color(Pixel.x(), Pixel.y(), color);
@@ -109,3 +117,5 @@ void rasterize(vec4 *clipcoord_attri, DrawData &drawData) {
         }
     }
 }
+
+

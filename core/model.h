@@ -27,7 +27,7 @@ private:
     void load_texture(std::string filename, const char *suffix, TGAImage &img);
     void create_map(const char *filename);
 public:
-    Model();
+    Model() = default;
     Model(const char *filename);
     /* 模型基础信息 */
     int vertSize();
@@ -40,6 +40,9 @@ public:
     std::vector<vec3> face(int index);
 
     /* 贴图信息 */
+    TGAImage& diffuse_map();
+    TGAImage& normal_map();
+    TGAImage& specular_map();
     vec3 normal(vec2 uv);
     vec3 diffuse(vec2 uv);
     float specular(vec2 uv);

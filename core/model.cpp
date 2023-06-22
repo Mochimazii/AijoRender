@@ -159,6 +159,14 @@ float Model::specular(vec2 uv) {
     return specularmap.get(uv0, uv1)[0] / 1.f;
 }
 
-Model::Model() {
+TGAImage &Model::diffuse_map() {
+    return this->diffusemap;
+}
 
+TGAImage &Model::normal_map() {
+    return this->normalmap;
+}
+
+TGAImage &Model::specular_map() {
+    return this->specularmap;
 }

@@ -138,6 +138,7 @@ vec2 operator/(vec2 v, double t);
 
 /* vec3 related functions */
 std::ostream& operator<<(std::ostream &out, const vec3 &v);
+vec3 to_vec3(const vec4 &u);
 vec3 operator+(const vec3 &u, const vec3 &v);
 vec3 operator-(const vec3 &u, const vec3 &v);
 vec3 operator*(const vec3 &u, const vec3 &v);
@@ -172,6 +173,7 @@ mat4 mat4_rotate_z(float angle);
 mat4 mat4_lookat(vec3 eye, vec3 target, vec3 up);
 mat4 mat4_ortho(float left, float right, float bottom, float top, float near, float far);
 mat4 mat4_perspective(float fovy, float aspect, float near, float far);
+vec3 viewport_transform(int width, int height, vec3 ndc_coord);
 
 /* untility functions */
 template <typename T>

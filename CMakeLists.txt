@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.23)
-project(BanaRender)
+project(AijoRender)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -13,7 +13,7 @@ set(HEADERS
         core/pipeline.h
         core/renderbuffer.h
         platform/win32.h
-        )
+        core/Scene.h)
 
 set(SOURCES
         core/tgaimage.cpp
@@ -25,6 +25,6 @@ set(SOURCES
         core/pipeline.cpp
         core/renderbuffer.cpp
         platform/win32.cpp
-        )
+        core/Scene.cpp)
 
 add_executable(BanaRender ${HEADERS} ${SOURCES})

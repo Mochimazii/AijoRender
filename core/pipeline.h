@@ -11,6 +11,7 @@
 #include "../shader/shader.h"
 #include "../platform/win32.h"
 #include "renderbuffer.h"
+#include "Scene.h"
 
 struct DrawData {
     Model model;
@@ -18,7 +19,7 @@ struct DrawData {
     renderbuffer render_buffer;
 };
 
-void draw_triangles(DrawData& drawData);
-void rasterize(vec4 *clipcoord_attri, DrawData& drawData);
+void draw_triangles(Scene& scene);
+void rasterize(Scene& scene, shader_struct_v2f* v2fs);
 
 #endif //BANARENDER_PIPELINE_H
