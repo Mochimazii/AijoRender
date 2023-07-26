@@ -33,6 +33,18 @@ static float interpolate_depth(float A_depth, float B_depth, float C_depth, vec3
 static shader_struct_v2f interpolate_varyings(shader_struct_v2f* v2f, vec3 barycentric) {
     // todo:透视矫正插值
     shader_struct_v2f ret;
+    float recip_w[3];
+    /* reciprocals of w */
+    for (int i = 0; i < 3; i++) {
+        recip_w[i] = barycentric[i] / v2f[i].clip_pos[3];
+    }
+    float Z_n = 1. / (recip_w[0] + recip_w[1] + recip_w[2]);
+    for (int i = 0; i < 3; ++i)
+    {
+        //求正确透视下插值的系数
+        recip_w[i] *= Z_n;
+    }
+    barycentric = {recip_w[0], recip_w[1], recip_w[2]};
     ret.world_pos = v2f[0].world_pos * barycentric.x() + v2f[1].world_pos * barycentric.y() +v2f[2].world_pos * barycentric.z();
     ret.world_normal = v2f[0].world_normal * barycentric.x() + v2f[1].world_normal * barycentric.y() +v2f[2].world_normal * barycentric.z();
     ret.uv = v2f[0].uv * barycentric.x() + v2f[1].uv * barycentric.y() + v2f[2].uv * barycentric.z();

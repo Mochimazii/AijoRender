@@ -27,4 +27,4 @@ set(SOURCES
         platform/win32.cpp
         core/Scene.cpp)
 
-add_executable(BanaRender ${HEADERS} ${SOURCES})
+add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
