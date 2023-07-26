@@ -558,6 +558,17 @@ mat4 mat4_perspective(float fovy, float aspect, float near, float far) {
     return m;
 }
 
+vec3 viewport_transform(int width, int height, vec3 ndc_coord) {
+    float x = (ndc_coord.x() + 1) * 0.5f * (width - 1);   /* [-1, 1] -> [0, w] */
+    float y = (ndc_coord.y() + 1) * 0.5f * (height - 1);  /* [-1, 1] -> [0, h] */
+    float z = (ndc_coord.z() + 1) * 0.5f;                  /* [-1, 1] -> [0, 1] */
+    return vec3(x, y, z);
+}
+
+vec3 to_vec3(const vec4 &u) {
+    return vec3(u.x(), u.y(), u.z());
+}
+
 template<typename T>
 T lerp(const T &start, const T &end, float alpha) {
     return start + (end - start) * alpha;
